@@ -1,6 +1,6 @@
 {
-  "name": "phaser-tutorial-multiplayer",
-  "version": "1.0.0",
+  "name": "phaser-multiplayer",
+  "version": "0.0.1",
   "description": "",
   "main": "server.js",
   "scripts": {
@@ -13,5 +13,8 @@
   "dependencies": {
     "express": "^4.17.1",
     "socket.io": "^2.2.0"
+  },
+  "engines": {
+    "node": ">=10"
   }
 }

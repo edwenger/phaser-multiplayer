@@ -1,7 +1,9 @@
-var express = require('express');
-var app = express();
-var server = require('http').Server(app);
-var io = require('socket.io').listen(server);
+'use strict';
+
+const express = require('express');
+const app = express();
+const server = require('http').Server(app);
+const io = require('socket.io').listen(server);
 
 var players = {};
 
@@ -70,6 +72,9 @@ io.on('connection', function (socket) {
 
 });
 
-server.listen(8081, function () {
-  console.log(`Listening on ${server.address().port}`);
+// Start the server
+const PORT = process.env.PORT || 8080;
+server.listen(PORT, function () {
+  console.log(`App listening on ${server.address().port}`);
+  console.log('Press Ctrl+C to quit.');
 });
