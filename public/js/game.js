@@ -1,5 +1,7 @@
-var GAME_WIDTH = 800
-var GAME_HEIGHT = 600
+var GAME_WIDTH = 800*2;
+var GAME_HEIGHT = 600*2;
+var CAMERA_WIDTH = 800;
+var CAMERA_HEIGHT = 600;
 
 var config = {
   type: Phaser.AUTO,
@@ -33,6 +35,12 @@ function create() {
   var self = this;
   this.socket = io();
   this.otherPlayers = this.physics.add.group();
+
+  this.physics.world.setBounds(0, 0, GAME_WIDTH, GAME_HEIGHT);
+
+  this.cameras.main
+      .setBounds(0, 0, GAME_WIDTH, GAME_HEIGHT)
+      .setViewport(0, 0, CAMERA_WIDTH, CAMERA_HEIGHT);
 
   this.socket.on('currentPlayers', function (players) {
     Object.keys(players).forEach(function (id) {
@@ -69,8 +77,10 @@ function create() {
 
   background = this.add.tileSprite(GAME_WIDTH/2, GAME_HEIGHT/2, GAME_WIDTH, GAME_HEIGHT, 'background');
 
-  this.blueScoreText = this.add.text(16, 16, '', { fontSize: '32px', fill: '#0000FF' });
-  this.redScoreText = this.add.text(GAME_HEIGHT - 16, 16, '', { fontSize: '32px', fill: '#FF0000' });
+  this.blueScoreText = this.add.text(16, 16, '', { fontSize: '32px', fill: '#0000FF' })
+                               .setScrollFactor(0);
+  this.redScoreText = this.add.text(CAMERA_WIDTH - 170, 16, '', { fontSize: '32px', fill: '#FF0000' })
+                              .setScrollFactor(0);  // TODO: right align + use consistent padding above?
 
   this.socket.on('scoreUpdate', function (scores) {
       self.blueScoreText.setText('Blue: ' + scores.blue);
@@ -102,10 +112,6 @@ function update() {
           this.ship.setAcceleration(0);
         }
 
-        // "wrap" function not in phaser 3.0, so updated index.html import to 3.17?
-        // console.log(this.physics.world);
-        this.physics.world.wrap(this.ship, 5);
-
         // emit player movement
         var x = this.ship.x;
         var y = this.ship.y;
@@ -131,9 +137,11 @@ function addPlayer(self, playerInfo) {
   } else {
     self.ship.setTint(0xff0000);
   }
-  self.ship.setDrag(100);
-  self.ship.setAngularDrag(100);
-  self.ship.setMaxVelocity(200);
+  self.ship.setDrag(100)
+           .setAngularDrag(100)
+           .setMaxVelocity(200)
+           .setCollideWorldBounds(true);
+  self.cameras.main.startFollow(self.ship, true, 0.05, 0.05);
 }
 
 function addOtherPlayers(self, playerInfo) {
