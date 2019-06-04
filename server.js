@@ -7,10 +7,16 @@ const io = require('socket.io').listen(server);
 
 var players = {};
 
+var villages = [
+    {x: 100, y: 400},
+    {x: 500, y: 150}
+];
+
 var star = {
   x: Math.floor(Math.random() * 700) + 50,
   y: Math.floor(Math.random() * 500) + 50
 };
+
 var scores = {
   blue: 0,
   red: 0
@@ -27,11 +33,14 @@ io.on('connection', function (socket) {
   // create a new player and add it to our players object
   players[socket.id] = {
     rotation: 0,
+    firing: false,
     x: Math.floor(Math.random() * 700) + 50,
     y: Math.floor(Math.random() * 500) + 50,
     playerId: socket.id,
     team: (Math.floor(Math.random() * 2) == 0) ? 'red' : 'blue'
   };
+  // send the village locations
+  socket.emit('villageLocations', villages)
   // send the players object to the new player
   socket.emit('currentPlayers', players);
   // update all other players of the new player
@@ -54,9 +63,18 @@ io.on('connection', function (socket) {
     players[socket.id].x = movementData.x;
     players[socket.id].y = movementData.y;
     players[socket.id].rotation = movementData.rotation;
+    players[socket.id].firing = movementData.firing;
     // emit a message to all players about the player that moved
     socket.broadcast.emit('playerMoved', players[socket.id]);
   });
+
+  socket.on('playerFiringUpdate', function (firingData) {
+      players[socket.id].firing = firingData.firing;
+      // if starting to fire, emit a message to all players about the firing player
+      if (firingData.firing) {
+          socket.broadcast.emit('playerFired', players[socket.id]);
+      }
+  })
 
   socket.on('starCollected', function () {
     if (players[socket.id].team === 'red') {

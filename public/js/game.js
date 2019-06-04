@@ -28,13 +28,30 @@ function preload() {
     this.load.image('ship', 'assets/spaceShips_001.png');
     this.load.image('otherPlayer', 'assets/enemyBlack5.png');
     this.load.image('star', 'assets/star_gold.png');
-    this.load.image('background', 'assets/background-texture.png')
+    this.load.image('background', 'assets/background-texture.png');
+    this.load.image('village', 'assets/village-hut-with-trees.png');
+    this.load.spritesheet('explosion', 'assets/explosion.png', {
+        frameWidth: 64,
+        frameHeight: 64
+    });
 }
 
 function create() {
   var self = this;
   this.socket = io();
   this.otherPlayers = this.physics.add.group();
+  this.villages = this.add.group();
+
+  this.anims.create({
+      key: 'explode',
+      frames: this.anims.generateFrameNumbers( 'explosion', {
+          start: 0,
+          end: 15
+      }),
+      frameRate: 16,
+      repeat: 0,
+      hideOnComplete: true
+  });
 
   this.physics.world.setBounds(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
@@ -73,6 +90,10 @@ function create() {
     });
   });
 
+  this.socket.on('playerFired', function(playerInfo) {
+      animateFire(self, playerInfo);
+  });
+
   this.cursors = this.input.keyboard.createCursorKeys();
 
   background = this.add.tileSprite(GAME_WIDTH/2, GAME_HEIGHT/2, GAME_WIDTH, GAME_HEIGHT, 'background');
@@ -94,6 +115,12 @@ function create() {
       this.socket.emit('starCollected');
     }, null, self);
   });
+
+  this.socket.on('villageLocations', function(villageLocations) {
+      villageLocations.forEach(function(village){
+          addVillage(self, village);
+      });
+  });
 }
 
 function update() {
@@ -112,6 +139,14 @@ function update() {
           this.ship.setAcceleration(0);
         }
 
+        var exploding = this.ship.exploding;
+
+        if (this.cursors.down.isDown) {
+          this.ship.firing = true;
+        } else {
+          this.ship.firing = false;
+        }
+
         // emit player movement
         var x = this.ship.x;
         var y = this.ship.y;
@@ -119,12 +154,21 @@ function update() {
         if (this.ship.oldPosition && (x !== this.ship.oldPosition.x || y !== this.ship.oldPosition.y || r !== this.ship.oldPosition.rotation)) {
           this.socket.emit('playerMovement', { x: this.ship.x, y: this.ship.y, rotation: this.ship.rotation });
         }
+        // emit firing
+        var f = this.ship.firing;
+        if (this.ship.oldPosition && (f !== this.ship.oldPosition.firing)) {
+          if (f) {
+              animateFire(this, this.ship);
+          }
+          this.socket.emit('playerFiringUpdate', {firing: this.ship.firing});
+        }
 
         // save old position data
         this.ship.oldPosition = {
           x: this.ship.x,
           y: this.ship.y,
-          rotation: this.ship.rotation
+          rotation: this.ship.rotation,
+          firing: this.ship.firing
         };
 
     }
@@ -153,4 +197,16 @@ function addOtherPlayers(self, playerInfo) {
   }
   otherPlayer.playerId = playerInfo.playerId;
   self.otherPlayers.add(otherPlayer);
+}
+
+function addVillage(self, villageInfo) {
+    const village = self.add.image(villageInfo.x, villageInfo.y, 'village')
+                            .setOrigin(0.5, 0.5).setScale(0.3);
+    self.villages.add(village);
+}
+
+function animateFire(self, playerInfo) {
+    const explosion = self.add.sprite(playerInfo.x, playerInfo.y, 'explosion')
+                              .setOrigin(0.5, 0.5).setAlpha(0.5);
+    explosion.play('explode');
 }
