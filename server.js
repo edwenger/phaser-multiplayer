@@ -7,10 +7,10 @@ const io = require('socket.io').listen(server);
 
 var players = {};
 
-var villages = [
-    {x: 100, y: 400},
-    {x: 500, y: 150}
-];
+var villages = {
+    0: {villageId: 0, x: 100, y: 400, immunity: 0},
+    1: {villageId: 1, x: 500, y: 150, immunity: 0}
+};
 
 var star = {
   x: Math.floor(Math.random() * 700) + 50,
@@ -86,6 +86,12 @@ io.on('connection', function (socket) {
     star.y = Math.floor(Math.random() * 500) + 50;
     io.emit('starLocation', star);
     io.emit('scoreUpdate', scores);
+  });
+
+  socket.on('villageHit', function(villageId) {
+      var village = villages[villageId];
+      village.immunity += 0.5 * (1 - village.immunity);
+      io.emit('villageUpdated', village);
   });
 
 });

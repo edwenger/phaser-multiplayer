@@ -3,6 +3,9 @@ var GAME_HEIGHT = 600*2;
 var CAMERA_WIDTH = 800;
 var CAMERA_HEIGHT = 600;
 
+var SHIP_DRAG = 100;
+var FIRE_PROXIMITY = 50;
+
 var config = {
   type: Phaser.AUTO,
   parent: 'phaser-example',
@@ -116,11 +119,20 @@ function create() {
     }, null, self);
   });
 
-  this.socket.on('villageLocations', function(villageLocations) {
-      villageLocations.forEach(function(village){
-          addVillage(self, village);
+  this.socket.on('villageUpdated', function (villageInfo) {
+      self.villages.getChildren().forEach(function (village) {
+        if (villageInfo.villageId === village.villageId) {
+            colorByImmunity(village, villageInfo.immunity);
+        }
+    });
+  });
+
+  this.socket.on('villageLocations', function(villages) {
+      Object.keys(villages).forEach(function(villageId){
+          addVillage(self, villages[villageId]);
       });
   });
+
 }
 
 function update() {
@@ -159,6 +171,12 @@ function update() {
         if (this.ship.oldPosition && (f !== this.ship.oldPosition.firing)) {
           if (f) {
               animateFire(this, this.ship);
+              var self = this;
+              this.villages.getChildren().forEach(function (village) {
+                  if (Math.hypot(x-village.x, y-village.y) < FIRE_PROXIMITY) {
+                      self.socket.emit('villageHit', village.villageId);
+                  }
+              });
           }
           this.socket.emit('playerFiringUpdate', {firing: this.ship.firing});
         }
@@ -181,8 +199,8 @@ function addPlayer(self, playerInfo) {
   } else {
     self.ship.setTint(0xff0000);
   }
-  self.ship.setDrag(100)
-           .setAngularDrag(100)
+  self.ship.setDrag(SHIP_DRAG)
+           .setAngularDrag(SHIP_DRAG)
            .setMaxVelocity(200)
            .setCollideWorldBounds(true);
   self.cameras.main.startFollow(self.ship, true, 0.05, 0.05);
@@ -200,8 +218,10 @@ function addOtherPlayers(self, playerInfo) {
 }
 
 function addVillage(self, villageInfo) {
-    const village = self.add.image(villageInfo.x, villageInfo.y, 'village')
+    const village = self.add.sprite(villageInfo.x, villageInfo.y, 'village')
                             .setOrigin(0.5, 0.5).setScale(0.3);
+    colorByImmunity(village, villageInfo.immunity);
+    village.villageId = villageInfo.villageId;
     self.villages.add(village);
 }
 
@@ -209,4 +229,12 @@ function animateFire(self, playerInfo) {
     const explosion = self.add.sprite(playerInfo.x, playerInfo.y, 'explosion')
                               .setOrigin(0.5, 0.5).setAlpha(0.5);
     explosion.play('explode');
+}
+
+function colorByImmunity(obj, immunity) {
+    if (immunity > 0) {
+        var colorString = parseInt(255-Math.round(immunity*128)).toString(16);
+        // obj.setTint('0xff'+colorString+colorString);  // reddish
+        obj.setTint('0x'+colorString+colorString+'ff');  // bluish
+    }
 }
